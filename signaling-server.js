@@ -67,6 +67,14 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("call-end", ({ to }) => {
+    const targetSocketId = userSocketMap[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("call-end");
+      console.log(`Call end sent to ${to}`);
+    }
+  });
+  
   socket.on("disconnect", () => {
     for (const [userId, sockId] of Object.entries(userSocketMap)) {
       if (sockId === socket.id) {
@@ -76,7 +84,7 @@ io.on("connection", (socket) => {
       }
     }
   });
-  
+
 });
 
 const PORT = 5050;
