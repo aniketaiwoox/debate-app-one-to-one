@@ -52,6 +52,32 @@ wss.on("connection", (ws, req) => {
           );
         }
       }
+
+      if (data.type === "offer") {
+        const { to, offer, from } = data;
+        const targetWs = clients.get(to);
+        if (targetWs) {
+          targetWs.send(JSON.stringify({ type: "offer", offer, from }));
+        }
+      }
+
+      if (data.type === "answer") {
+        const { to, answer, from } = data;
+        const targetWs = clients.get(to);
+        if (targetWs) {
+          targetWs.send(JSON.stringify({ type: "answer", answer, from }));
+        }
+      }
+
+      if (data.type === "ice-candidate") {
+        const { to, candidate, from } = data;
+        const targetWs = clients.get(to);
+        if (targetWs) {
+          targetWs.send(
+            JSON.stringify({ type: "ice-candidate", candidate, from })
+          );
+        }
+      }
     } catch (err) {
       console.error("Error handling message:", err.message);
     }
