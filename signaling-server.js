@@ -1,37 +1,68 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const { Server } = require("socket.io");
+const WebSocket = require("ws");
 
-const app = express();
-app.use(
-  cors({
-    origin: "https://aiwoox.in",
-    methods: "GET,POST",
-    credentials: true,
-  })
-);
+// Use Render's provided PORT or default to 8080 for local development
+const PORT = process.env.PORT || 8080;
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ["https://aiwoox.in"],
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-  transports: ["websocket", "polling"],
-});
+const wss = new WebSocket.Server({ port: PORT });
+const clients = new Map(); // userId -> ws
 
-io.on("connection", (socket) => {
- 
- 
+wss.on("connection", (ws, req) => {
+  const origin = req.headers.origin;
+  const allowedOrigin = "https://aiwoox.in";
+  if (origin !== allowedOrigin) {
+    ws.terminate();
+    return;
+  }
 
+  let currentUserId = null;
 
-  
+  ws.on("message", (message) => {
+    try {
+      const data = JSON.parse(message);
 
-  const PORT = 5050;
-  server.listen(PORT, () => {
-    console.log(`Signaling server running on port ${PORT}`);
+      if (data.type === "register") {
+        currentUserId = data.userId;
+        clients.set(currentUserId, ws);
+        console.log(`User registered: ${currentUserId}`);
+      }
+
+      if (data.type === "call-user") {
+        const { from, to, meetingParams } = data;
+        const targetWs = clients.get(to);
+        if (targetWs) {
+          targetWs.send(
+            JSON.stringify({
+              type: "incoming-call",
+              from,
+              meetingParams,
+            })
+          );
+        }
+      }
+
+      if (data.type === "call-response") {
+        const { from, to, accepted } = data;
+        const targetWs = clients.get(to);
+        if (targetWs) {
+          targetWs.send(
+            JSON.stringify({
+              type: accepted ? "call-accepted" : "call-rejected",
+              from,
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error handling message:", err.message);
+    }
+  });
+
+  ws.on("close", () => {
+    if (currentUserId) {
+      clients.delete(currentUserId);
+      console.log(`User disconnected: ${currentUserId}`);
+    }
   });
 });
+
+console.log(`WebSocket server running on port ${PORT}`);
