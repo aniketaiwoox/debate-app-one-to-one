@@ -59,6 +59,15 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on('register', (userId) => {
+    userSocketMap[userId] = socket.id;
+    console.log(`User registered: ${userId} => ${socket.id}`);
+  
+    // Notify both sides someone is ready
+    io.emit('ready', { userId });
+  });
+
+  
   socket.on("ice-candidate", ({ to, candidate, from }) => {
     const targetSocketId = userSocketMap[to];
     if (targetSocketId) {
